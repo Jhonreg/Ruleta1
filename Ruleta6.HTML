@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta Personalizada de 11 Puestos</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .ruleta-container {
+            position: relative;
+            width: 350px;
+            height: 350px;
+            margin: 20px;
+        }
+        canvas {
+            border: 3px solid #333;
+            border-radius: 50%;
+            background-color: #fff;
+        }
+        .indicador {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #222;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .resultado {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="ruleta-container">
+        <canvas id="ruleta" width="350" height="350"></canvas>
+        <div class="indicador"></div>
+    </div>
+    <button id="botonGirar" onclick="girarRuleta()">Girar Ruleta</button>
+    <div class="resultado" id="resultado"></div>
+
+    <script>
+        // Configuración de la ruleta
+        const totalPuestos = 11; // Número total de segmentos en la ruleta
+        const premios = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]; // Números en cada segmento
+        const colores = [
+            "#FF6B6B", // Rojo suave
+            "#4ECDC4", // Turquesa
+            "#FFD93D", // Amarillo brillante
+            "#6B728E", // Gris azulado
+            "#FF8C94", // Rosa suave
+            "#45B7D1", // Azul claro
+            "#96CEB4", // Verde menta
+            "#FF9F80", // Coral
+            "#D4A5A5", // Rosa pálido
+            "#9B59B6", // Púrpura
+            "#3498DB"  // Azul vibrante
+        ];
+
+        // Elementos del canvas
+        const canvas = document.getElementById("ruleta");
+        const ctx = canvas.getContext("2d");
+        const anguloPorPuesto = 360 / totalPuestos; // Ángulo por segmento (360 / 11 ≈ 32.727 grados)
+        const radio = canvas.width / 2; // Radio del canvas
+
+        // Función para dibujar la ruleta
+        function dibujarRuleta(rotacion = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpiar el canvas
+            ctx.save();
+            ctx.translate(radio, radio); // Centrar el contexto en el canvas
+            ctx.rotate((-90 + rotacion) * Math.PI / 180); // Rotar -90 grados para alinear el primer segmento arriba
+
+            // Dibujar cada segmento
+            for (let i = 0; i < totalPuestos; i++) {
+                const anguloInicio = i * anguloPorPuesto * Math.PI / 180;
+                const anguloFin = (i + 1) * anguloPorPuesto * Math.PI / 180;
+
+                // Dibujar el segmento
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, radio, anguloInicio, anguloFin);
+                ctx.fillStyle = colores[i];
+                ctx.fill();
+                ctx.strokeStyle = "#333";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Dibujar el número en el centro del segmento
+                ctx.save();
+                ctx.rotate((anguloPorPuesto * (i + 0.5)) * Math.PI / 180); // Rotar al centro del segmento
+                ctx.font = "bold 20px Arial";
+                ctx.fillStyle = "#fff";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(premios[i], radio * 0.7, 0);
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        // Dibujar la ruleta inicial
+        dibujarRuleta();
+
+        // Función para girar la ruleta
+        function girarRuleta() {
+            // *** Cambia este número (1 al 11) para definir el puesto donde caerá la ruleta ***
+            const puestoObjetivo = 6; // Línea para modificar manualmente el puesto
+
+            // Validar el puesto objetivo
+            if (puestoObjetivo < 1 || puestoObjetivo > totalPuestos) {
+                alert(`Error: El puesto objetivo debe estar entre 1 y ${totalPuestos}`);
+                return;
+            }
+
+            // Desactivar el botón para evitar más clics
+            document.getElementById("botonGirar").disabled = true;
+
+            // Calcular el ángulo final para alinear el segmento objetivo con el indicador
+            // Compensar el desfase de 8 puestos (8 * anguloPorPuesto)
+            const anguloSegmento = anguloPorPuesto * (puestoObjetivo - 1); // Ángulo inicial del segmento
+            const desfase = 8 * anguloPorPuesto; // Compensación por el desfase de 8 puestos
+            const anguloFinal = (360 * 8) + 90 - anguloSegmento - (anguloPorPuesto / 2) + desfase; // 8 giros + ajuste para alinear
+
+            // Animación de la ruleta
+            let rotacionActual = 0;
+            const duracion = 8000; // Duración de 8 segundos para un giro realista
+            const inicioTiempo = performance.now();
+
+            function animar(tiempo) {
+                const transcurrido = tiempo - inicioTiempo;
+                const progreso = Math.min(transcurrido / duracion, 1);
+                const rotacion = rotacionActual + (anguloFinal - rotacionActual) * (1 - Math.pow(1 - progreso, 3)); // Easing cúbico
+                dibujarRuleta(rotacion);
+                if (progreso < 1) {
+                    requestAnimationFrame(animar);
+                } else {
+                    // Mostrar el resultado en español
+                    document.getElementById("resultado").innerText = `¡Ganaste: ${premios[puestoObjetivo - 1]}!`;
+                }
+            }
+
+            requestAnimationFrame(animar);
+        }
+    </script>
+</body>
+</html>
